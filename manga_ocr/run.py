@@ -47,8 +47,7 @@ def get_path_key(path):
 def run(read_from='clipboard',
         write_to='clipboard',
         pretrained_model_name_or_path='kha-white/manga-ocr-base',
-        force_cpu=False,
-        delay_secs=0.1
+        force_cpu=False
         ):
     """
     Run OCR in the background, waiting for new images to appear either in system clipboard, or a directory.
@@ -58,7 +57,6 @@ def run(read_from='clipboard',
     :param write_to: Specifies where to save recognized texts to. Can be either "clipboard", or a path to a text file.
     :param pretrained_model_name_or_path: Path to a trained model, either local or from Transformers' model hub.
     :param force_cpu: If True, OCR will use CPU even if GPU is available.
-    :param delay_secs: How often to check for new images, in seconds.
     """
 
     mocr = MangaOcr(pretrained_model_name_or_path, force_cpu)
@@ -84,10 +82,6 @@ def run(read_from='clipboard',
             else:
                 if isinstance(img, Image.Image) and not are_images_identical(img, old_img):
                     process_and_write_results(mocr, img, write_to)
-
-            time.sleep(delay_secs)
-
-
     else:
         read_from = Path(read_from)
         if not read_from.is_dir():
@@ -95,26 +89,15 @@ def run(read_from='clipboard',
 
         logger.info(f'Reading from directory {read_from}')
 
-        old_paths = set()
         for path in read_from.iterdir():
-            old_paths.add(get_path_key(path))
-
-        while True:
-            for path in read_from.iterdir():
-                path_key = get_path_key(path)
-                if path_key not in old_paths:
-                    old_paths.add(path_key)
-
-                    try:
-                        img = Image.open(path)
-                        img.load()
-                    except (UnidentifiedImageError, OSError) as e:
-                        logger.warning(f'Error while reading file {path}: {e}')
-                    else:
-                        process_and_write_results(mocr, img, write_to)
-
-            time.sleep(delay_secs)
-
+            logger.info(f'processing {path}')
+            try:
+                img = Image.open(path)
+                img.load()
+            except (UnidentifiedImageError, OSError) as e:
+                logger.warning(f'Error while reading file {path}: {e}')
+            else:
+                process_and_write_results(mocr, img, write_to)
 
 if __name__ == '__main__':
     fire.Fire(run)
